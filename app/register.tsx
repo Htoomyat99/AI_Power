@@ -1,37 +1,148 @@
-import { Alert, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native";
 import { Button, Divider, Icon, Text, TextInput } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { supabase } from "@/utils/supabase";
+import { makeRedirectUri } from "expo-auth-session";
+import * as QueryParams from "expo-auth-session/build/QueryParams";
+import * as WebBrowser from "expo-web-browser";
+import { Alert } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
 
-const Login = () => {
+const Register = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [secureText, setSecureText] = useState(true);
+  const [phone, setPhone] = useState("+959769706139");
 
-  const goRegister = () => {
-    router.push("/register");
+  const redirectTo = makeRedirectUri();
+  const createSessionFromUrl = async (url: string) => {
+    const { params, errorCode } = QueryParams.getQueryParams(url);
+
+    if (errorCode) throw new Error(errorCode);
+    const { access_token, refresh_token } = params;
+
+    if (!access_token) return;
+
+    const { data, error } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
+    if (error) throw error;
+    console.log("session >>>", data.session);
+    return data.session;
+  };
+  const faceBookSignInAction = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+    console.log("data >>>", data);
+    console.log("error >>>", error);
+    if (error) throw error;
+
+    const res = await WebBrowser.openAuthSessionAsync(
+      data?.url ?? "",
+      redirectTo
+    );
+
+    if (res.type === "success") {
+      const { url } = res;
+      await createSessionFromUrl(url);
+    }
   };
 
-  const signInWithEmailAction = async () => {
+  const googleSignInAction = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+    console.log("data >>>", data);
+    console.log("error >>>", error);
+    if (error) throw error;
+
+    const res = await WebBrowser.openAuthSessionAsync(
+      data?.url ?? "",
+      redirectTo
+    );
+
+    if (res.type === "success") {
+      const { url } = res;
+      await createSessionFromUrl(url);
+    }
+  };
+
+  const goSingIn = () => {
+    router.push("/login");
+  };
+
+  const goPhone = () => {
+    // router.push("/phone")
+  };
+
+  const signUpWithEmailAction = async () => {
     const {
-      error,
       data: { session },
-    } = await supabase.auth.signInWithPassword({
+      error,
+    } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
-    console.log(session);
-    router.back();
 
     if (error) Alert.alert(error.message);
+    if (!session)
+      Alert.alert("Please check your inbox for email verification!");
+  };
+
+  const appleLoginAction = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      console.log("credential >>>", credential);
+      if (credential.identityToken) {
+        const {
+          error,
+          data: { user },
+        } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: credential.identityToken,
+        });
+        console.log(
+          JSON.stringify({ error, user }),
+          "u have to create apple developer account",
+          2
+        );
+        if (!error) {
+          //User is signed in
+        }
+      } else {
+        throw new Error("No identity Token");
+      }
+    } catch (e) {
+      if (e === "ERR_REQUEST_CANCELED") {
+        // handle that the user canceled the sign-in flow
+        console.log(e);
+      } else {
+        // handle other errors
+        Alert.alert("This process available in ios");
+      }
+    }
   };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <View style={{ flex: 1, backgroundColor: "#fff", padding: 24 }}>
+      <View style={{ flex: 1, padding: 24 }}>
         {/* header */}
         <View
           style={{
@@ -53,7 +164,7 @@ const Login = () => {
         {/* body */}
 
         <Text variant="titleMedium" style={{ marginTop: 40 }}>
-          Sing In
+          Create Account
         </Text>
 
         <TextInput
@@ -90,27 +201,27 @@ const Login = () => {
           outlineStyle={{ borderWidth: 1.2 }}
         />
 
-        <Button
-          style={{ marginTop: 50 }}
-          contentStyle={{ paddingVertical: 1.5, backgroundColor: "teal" }}
-          mode="contained"
-          onPress={signInWithEmailAction}
-        >
-          Sign In
-        </Button>
-
         <Text
           variant="bodySmall"
           style={{
             color: "teal",
             alignSelf: "flex-end",
-            paddingVertical: 10,
             paddingHorizontal: 5,
+            paddingVertical: 10,
           }}
-          onPress={goRegister}
+          onPress={goSingIn}
         >
-          Don't have an account? Register
+          Already have an account? Sign In
         </Text>
+
+        <Button
+          style={{ marginTop: 40 }}
+          contentStyle={{ paddingVertical: 1.5, backgroundColor: "teal" }}
+          mode="contained"
+          onPress={signUpWithEmailAction}
+        >
+          Sign Up
+        </Button>
 
         <View
           style={{
@@ -136,8 +247,8 @@ const Login = () => {
           style={{ marginTop: 10 }}
           contentStyle={{ paddingVertical: 1.5 }}
           mode="outlined"
-          onPress={() => console.log("Pressed")}
-          textColor="#555555"
+          onPress={goPhone}
+          textColor="#000"
           labelStyle={{ paddingHorizontal: 30 }}
         >
           SignIn with Phone
@@ -149,7 +260,7 @@ const Login = () => {
           style={{ marginTop: 20 }}
           contentStyle={{ paddingVertical: 1.5 }}
           mode="outlined"
-          onPress={() => console.log("Pressed")}
+          onPress={appleLoginAction}
           textColor="#000"
           labelStyle={{ paddingHorizontal: 20 }}
         >
@@ -162,7 +273,7 @@ const Login = () => {
           style={{ marginTop: 20 }}
           contentStyle={{ paddingVertical: 1.5 }}
           mode="outlined"
-          onPress={() => console.log("Pressed")}
+          onPress={googleSignInAction}
           textColor="#B22222"
           labelStyle={{ paddingHorizontal: 30 }}
         >
@@ -175,7 +286,7 @@ const Login = () => {
           style={{ marginTop: 20 }}
           contentStyle={{ paddingVertical: 1.5 }}
           mode="outlined"
-          onPress={() => console.log("Pressed")}
+          onPress={faceBookSignInAction}
           textColor="#1877f2"
           labelStyle={{ paddingHorizontal: 20 }}
         >
@@ -186,4 +297,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;
