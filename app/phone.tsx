@@ -10,8 +10,7 @@ const Phone = () => {
 
   async function getOTP() {
     const { data, error } = await supabase.auth.signInWithOtp({
-      phone,
-      options: { channel: "sms" },
+      phone: phone,
     });
     console.log("phone data >>", data);
 
@@ -24,7 +23,7 @@ const Phone = () => {
       data: { session },
       error,
     } = await supabase.auth.verifyOtp({
-      phone,
+      phone: "+959769706139",
       token: otp,
       type: "sms",
     });

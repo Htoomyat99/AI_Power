@@ -1,13 +1,15 @@
 import { ScrollView, View } from "react-native";
-import React, { useEffect, useState } from "react";
-import { Button, Divider, Icon, Text, TextInput } from "react-native-paper";
+import React, { useState } from "react";
+import { Button, Icon, Text, TextInput } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { supabase } from "@/utils/supabase";
-import { makeRedirectUri } from "expo-auth-session";
-import * as QueryParams from "expo-auth-session/build/QueryParams";
-import * as WebBrowser from "expo-web-browser";
 import { Alert } from "react-native";
-import * as AppleAuthentication from "expo-apple-authentication";
+
+import {
+  appleLoginAction,
+  faceBookSignInAction,
+  googleSignInAction,
+} from "@/utils/authFunction";
 
 const Register = () => {
   const router = useRouter();
@@ -15,79 +17,18 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [secureText, setSecureText] = useState(true);
   const [phone, setPhone] = useState("+959769706139");
-
-  const redirectTo = makeRedirectUri();
-  const createSessionFromUrl = async (url: string) => {
-    const { params, errorCode } = QueryParams.getQueryParams(url);
-
-    if (errorCode) throw new Error(errorCode);
-    const { access_token, refresh_token } = params;
-
-    if (!access_token) return;
-
-    const { data, error } = await supabase.auth.setSession({
-      access_token,
-      refresh_token,
-    });
-    if (error) throw error;
-    console.log("session >>>", data.session);
-    return data.session;
-  };
-  const faceBookSignInAction = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "facebook",
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-      },
-    });
-    console.log("data >>>", data);
-    console.log("error >>>", error);
-    if (error) throw error;
-
-    const res = await WebBrowser.openAuthSessionAsync(
-      data?.url ?? "",
-      redirectTo
-    );
-
-    if (res.type === "success") {
-      const { url } = res;
-      await createSessionFromUrl(url);
-    }
-  };
-
-  const googleSignInAction = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        skipBrowserRedirect: true,
-      },
-    });
-    console.log("data >>>", data);
-    console.log("error >>>", error);
-    if (error) throw error;
-
-    const res = await WebBrowser.openAuthSessionAsync(
-      data?.url ?? "",
-      redirectTo
-    );
-
-    if (res.type === "success") {
-      const { url } = res;
-      await createSessionFromUrl(url);
-    }
-  };
+  const [loading, setLoading] = useState(false);
 
   const goSingIn = () => {
     router.push("/login");
   };
 
   const goPhone = () => {
-    // router.push("/phone")
+    router.push("/phone");
   };
 
   const signUpWithEmailAction = async () => {
+    setLoading(true);
     const {
       data: { session },
       error,
@@ -95,49 +36,11 @@ const Register = () => {
       email: email,
       password: password,
     });
-
+    setLoading(false);
     if (error) Alert.alert(error.message);
     if (!session)
-      Alert.alert("Please check your inbox for email verification!");
-  };
-
-  const appleLoginAction = async () => {
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      console.log("credential >>>", credential);
-      if (credential.identityToken) {
-        const {
-          error,
-          data: { user },
-        } = await supabase.auth.signInWithIdToken({
-          provider: "apple",
-          token: credential.identityToken,
-        });
-        console.log(
-          JSON.stringify({ error, user }),
-          "u have to create apple developer account",
-          2
-        );
-        if (!error) {
-          //User is signed in
-        }
-      } else {
-        throw new Error("No identity Token");
-      }
-    } catch (e) {
-      if (e === "ERR_REQUEST_CANCELED") {
-        // handle that the user canceled the sign-in flow
-        console.log(e);
-      } else {
-        // handle other errors
-        Alert.alert("This process available in ios");
-      }
-    }
+      // Alert.alert("Please check your inbox for email verification!");
+      console.log(error);
   };
 
   return (
@@ -215,6 +118,7 @@ const Register = () => {
         </Text>
 
         <Button
+          loading={loading}
           style={{ marginTop: 40 }}
           contentStyle={{ paddingVertical: 1.5, backgroundColor: "teal" }}
           mode="contained"
@@ -242,7 +146,6 @@ const Register = () => {
         </View>
 
         <Button
-          // loading={true}
           icon={"cellphone-text"}
           style={{ marginTop: 10 }}
           contentStyle={{ paddingVertical: 1.5 }}
@@ -255,7 +158,7 @@ const Register = () => {
         </Button>
 
         <Button
-          // loading={true}
+          loading={loading}
           icon={"apple"}
           style={{ marginTop: 20 }}
           contentStyle={{ paddingVertical: 1.5 }}
@@ -268,7 +171,7 @@ const Register = () => {
         </Button>
 
         <Button
-          // loading={true}
+          loading={loading}
           icon={"google"}
           style={{ marginTop: 20 }}
           contentStyle={{ paddingVertical: 1.5 }}
@@ -281,7 +184,7 @@ const Register = () => {
         </Button>
 
         <Button
-          // loading={true}
+          loading={loading}
           icon={"facebook"}
           style={{ marginTop: 20 }}
           contentStyle={{ paddingVertical: 1.5 }}

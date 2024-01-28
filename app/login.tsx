@@ -1,8 +1,9 @@
 import { Alert, ScrollView, View } from "react-native";
-import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native";
-import { Button, Divider, Icon, Text, TextInput } from "react-native-paper";
+import React, { useState } from "react";
+import { Button, Icon, Text, TextInput } from "react-native-paper";
 import { useRouter } from "expo-router";
+
+//utils
 import { supabase } from "@/utils/supabase";
 
 const Login = () => {
@@ -10,12 +11,14 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [secureText, setSecureText] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const goRegister = () => {
     router.push("/register");
   };
 
   const signInWithEmailAction = async () => {
+    setLoading(true);
     const {
       error,
       data: { session },
@@ -25,6 +28,7 @@ const Login = () => {
     });
     console.log(session);
     router.back();
+    setLoading(false);
 
     if (error) Alert.alert(error.message);
   };
@@ -91,6 +95,7 @@ const Login = () => {
         />
 
         <Button
+          loading={loading}
           style={{ marginTop: 50 }}
           contentStyle={{ paddingVertical: 1.5, backgroundColor: "teal" }}
           mode="contained"

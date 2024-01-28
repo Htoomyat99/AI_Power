@@ -1,7 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Register from "./register";
-import Login from "./login";
-import Phone from "./phone";
 import { supabase } from "@/utils/supabase";
 import { Session } from "@supabase/supabase-js";
 import React, { useState, useEffect } from "react";
@@ -25,7 +23,6 @@ export default function Page() {
       {session && session.user ? (
         <Dashboard key={session.user.id} session={session} />
       ) : (
-        // <Phone />
         <Register />
       )}
     </View>
@@ -35,7 +32,6 @@ export default function Page() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // alignItems: "center",
     padding: 24,
     backgroundColor: "#fff",
   },
